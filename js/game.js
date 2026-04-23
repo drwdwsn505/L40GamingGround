@@ -14,6 +14,7 @@ class Game {
     this.karts = [];
     this.aiDrivers = [];
     this.itemBoxes = buildItemBoxes();
+    this.trackHazards = buildHazards();
     this.projectiles = [];
     this.hazards = [];
     this.events = []; // transient screen effects
@@ -25,6 +26,13 @@ class Game {
     this.postRaceTime = 0;
     this.finishedOrder = [];
     this.paused = false;
+
+    // Collision feel / screen effects.
+    this.shake = 0;
+
+    // Wrong-way detection (player only).
+    this.wrongWayTime = 0;
+    this.wrongWay = false;
 
     this.buildRoster();
     this.wirePlayerSounds();
@@ -122,11 +130,39 @@ class Game {
     // Kart physics + checkpoints.
     for (const k of this.karts) k.update(dt, this.elapsed, this.karts);
 
-    // Kart-vs-kart collisions.
+    // Kart-vs-kart collisions. Strong hits involving the player rattle the
+    // camera and play a thud.
     for (let i = 0; i < this.karts.length; i++) {
       for (let j = i + 1; j < this.karts.length; j++) {
-        collideKarts(this.karts[i], this.karts[j]);
+        const sev = collideKarts(this.karts[i], this.karts[j]);
+        if (sev > 1.5 && (this.karts[i].isPlayer || this.karts[j].isPlayer)) {
+          this.shake = Math.min(8, this.shake + sev * 0.8);
+          Sound.play("thunk");
+        }
       }
+    }
+
+    // Track hazards (boost pads, oil slicks, moving obstacles).
+    for (const h of this.trackHazards) h.update(dt, this.karts);
+
+    // Shake decay.
+    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 12);
+
+    // Wrong-way detection (player only). Sustained motion against the track
+    // tangent for > 0.5s triggers the warning.
+    {
+      const p = this.player;
+      const speed = Math.hypot(p.vx, p.vy);
+      if (speed > 0.6 && !p.finished && this.state === "racing") {
+        const theta = Math.atan2(p.y - Track.cy, p.x - Track.cx);
+        const t = Track.tangentAt(theta);
+        const dot = (p.vx * t.x + p.vy * t.y) / speed;
+        if (dot < -0.2) this.wrongWayTime += dt;
+        else this.wrongWayTime = Math.max(0, this.wrongWayTime - dt * 2);
+      } else {
+        this.wrongWayTime = Math.max(0, this.wrongWayTime - dt * 2);
+      }
+      this.wrongWay = this.wrongWayTime > 0.5;
     }
 
     // Item boxes.
@@ -213,12 +249,24 @@ class Game {
 
   draw() {
     const ctx = this.ctx;
+
+    // Apply screen shake by translating the canvas.
+    ctx.save();
+    if (this.shake > 0) {
+      const sx = (Math.random() - 0.5) * this.shake;
+      const sy = (Math.random() - 0.5) * this.shake;
+      ctx.translate(sx, sy);
+    }
+
     Track.draw(ctx);
+
+    // Track hazards drawn on the asphalt, under karts.
+    for (const h of this.trackHazards) h.draw(ctx);
 
     // Item boxes.
     for (const b of this.itemBoxes) b.draw(ctx);
 
-    // Hazards.
+    // Projectile/banana hazards.
     for (const h of this.hazards) h.draw(ctx);
 
     // Karts (draw in progress order, leader on top).
@@ -235,5 +283,7 @@ class Game {
         ctx.fillRect(0, 0, Track.width, Track.height);
       }
     }
+
+    ctx.restore();
   }
 }

@@ -335,12 +335,15 @@ class Kart {
   }
 }
 
-// Collision resolution for two karts. Applies impulse based on masses.
+// Collision resolution for two karts. Applies mass-weighted position push-out,
+// a velocity impulse along the normal, and a small angular jolt so contact
+// visibly rotates the lighter kart. Returns the impact severity (the inward
+// component of relative velocity; >= 0).
 function collideKarts(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
   const dist = Math.hypot(dx, dy);
   const minDist = a.radius + b.radius;
-  if (dist === 0 || dist >= minDist) return;
+  if (dist === 0 || dist >= minDist) return 0;
   const overlap = minDist - dist;
   const nx = dx / dist, ny = dy / dist;
   const totalMass = a.physics.mass + b.physics.mass;
@@ -350,14 +353,47 @@ function collideKarts(a, b) {
   a.y -= ny * overlap * aShare;
   b.x += nx * overlap * bShare;
   b.y += ny * overlap * bShare;
-  // Relative velocity damping along normal.
+
+  // Relative velocity along the contact normal (negative = closing).
   const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
   const vAlong = rvx * nx + rvy * ny;
+  let severity = 0;
   if (vAlong < 0) {
-    const impulse = -vAlong * 0.6;
+    severity = -vAlong;
+    const impulse = severity * 0.7;
     a.speed -= impulse * aShare;
     b.speed += impulse * bShare;
+
+    // Angular jolt: the lighter kart rotates away from the impact more.
+    // Cross product of forward × normal determines which way to rotate. In a
+    // near-head-on hit both crosses collapse to near-zero (and picking up
+    // only float noise), so fall back to explicitly opposite signs so the
+    // two karts rotate apart instead of in lockstep.
+    const twist = Math.min(0.45, severity * 0.06);
+    const afx = Math.cos(a.angle), afy = Math.sin(a.angle);
+    const bfx = Math.cos(b.angle), bfy = Math.sin(b.angle);
+    const aCross = afx * ny - afy * nx;
+    const bCross = bfx * (-ny) - bfy * (-nx);
+    const EPS = 1e-6;
+    let aSign, bSign;
+    if (Math.abs(aCross) < EPS && Math.abs(bCross) < EPS) {
+      aSign = +1; bSign = -1;
+    } else {
+      aSign = Math.sign(aCross) || 1;
+      bSign = Math.sign(bCross) || -1;
+    }
+    a.angle += aSign * twist * aShare;
+    b.angle += bSign * twist * bShare;
+
+    // Reduce grip momentarily so the hit pushes them sideways before they
+    // snap back to facing — makes contact feel weighty.
+    const slide = Math.min(2.2, severity * 0.9);
+    a.vx -= nx * slide * aShare;
+    a.vy -= ny * slide * aShare;
+    b.vx += nx * slide * bShare;
+    b.vy += ny * slide * bShare;
   }
+  return severity;
 }
 
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }

@@ -192,6 +192,7 @@
       state.game.draw();
       renderHUD();
       renderCountdown();
+      renderWrongWay();
     }
 
     Input.endFrame();
@@ -232,6 +233,13 @@
     } else {
       el.classList.add("hidden");
     }
+  }
+
+  function renderWrongWay() {
+    const el = document.getElementById("wrong-way");
+    if (!el) return;
+    const show = !!state.game && state.game.wrongWay;
+    el.classList.toggle("hidden", !show);
   }
 
   function updatePauseOverlay() {

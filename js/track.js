@@ -18,6 +18,22 @@ const TRACKS = [
       center: "#56e39f",
     },
     gripMod: 1.0,
+    features: {
+      // theta: radians around track from finish (0 = finish line, ccw)
+      // radialOffset: perpendicular offset from the center line (+ = outer)
+      boostPads: [
+        { theta: 0.5,               radialOffset: -20, arc: 0.08, width: 40 },
+        { theta: Math.PI,           radialOffset: -25, arc: 0.08, width: 40 },
+        { theta: Math.PI + 1.2,     radialOffset:  25, arc: 0.08, width: 40 },
+      ],
+      oilSlicks: [
+        { theta: 1.2,               radialOffset:  10, radius: 15 },
+        { theta: Math.PI * 1.7,     radialOffset: -10, radius: 15 },
+      ],
+      obstacles: [
+        { theta: Math.PI * 0.5 + 0.2, amplitude: 45, period: 3.5, phase: 0 },
+      ],
+    },
   },
   {
     id: "speedway",
@@ -31,6 +47,18 @@ const TRACKS = [
       center: "#ff9ecb",
     },
     gripMod: 1.0,
+    features: {
+      boostPads: [
+        { theta: 0.2,               radialOffset: 0,   arc: 0.10, width: 50 },
+        { theta: Math.PI - 0.2,     radialOffset: 0,   arc: 0.10, width: 50 },
+        { theta: Math.PI + 0.2,     radialOffset: 0,   arc: 0.10, width: 50 },
+        { theta: Math.PI * 2 - 0.2, radialOffset: 0,   arc: 0.10, width: 50 },
+      ],
+      oilSlicks: [
+        { theta: Math.PI * 0.55,    radialOffset:  20, radius: 14 },
+      ],
+      obstacles: [],
+    },
   },
   {
     id: "hotloop",
@@ -44,6 +72,21 @@ const TRACKS = [
       center: "#ffd166",
     },
     gripMod: 1.0,
+    features: {
+      boostPads: [
+        { theta: Math.PI * 0.5,     radialOffset: -15, arc: 0.08, width: 35 },
+        { theta: Math.PI * 1.5,     radialOffset: -15, arc: 0.08, width: 35 },
+      ],
+      oilSlicks: [
+        { theta: Math.PI * 0.25,    radialOffset:  10, radius: 13 },
+        { theta: Math.PI * 0.75,    radialOffset: -10, radius: 13 },
+        { theta: Math.PI * 1.25,    radialOffset:  10, radius: 13 },
+        { theta: Math.PI * 1.75,    radialOffset: -10, radius: 13 },
+      ],
+      obstacles: [
+        { theta: Math.PI,           amplitude: 35, period: 2.8, phase: 0 },
+      ],
+    },
   },
   {
     id: "glacier",
@@ -57,6 +100,19 @@ const TRACKS = [
       center: "#9ecae1",
     },
     gripMod: 0.6,
+    features: {
+      boostPads: [
+        { theta: 0.4,               radialOffset: 0,   arc: 0.08, width: 40 },
+        { theta: Math.PI + 0.4,     radialOffset: 0,   arc: 0.08, width: 40 },
+      ],
+      oilSlicks: [
+        { theta: Math.PI * 0.35,    radialOffset:  15, radius: 18 },
+        { theta: Math.PI * 0.85,    radialOffset: -15, radius: 18 },
+        { theta: Math.PI * 1.35,    radialOffset:  15, radius: 18 },
+        { theta: Math.PI * 1.85,    radialOffset: -15, radius: 18 },
+      ],
+      obstacles: [],
+    },
   },
 ];
 
@@ -85,6 +141,7 @@ const Track = {
     this.theme = def.theme;
     this.gripMod = def.gripMod;
     this.currentId = def.id;
+    this.features = def.features || { boostPads: [], oilSlicks: [], obstacles: [] };
     return def;
   },
 
