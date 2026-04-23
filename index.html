@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turbo Karts</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Main menu -->
+    <section id="menu" class="screen active">
+      <h1 class="title">TURBO KARTS</h1>
+      <p class="subtitle">Pick your racer, grab items, take the checkered flag.</p>
+
+      <div class="character-grid" id="character-grid"></div>
+
+      <div class="menu-controls">
+        <label>
+          Laps:
+          <select id="lap-select">
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="5">5</option>
+          </select>
+        </label>
+        <label>
+          AI:
+          <select id="ai-select">
+            <option value="3">3 opponents</option>
+            <option value="5" selected>5 opponents</option>
+            <option value="7">7 opponents</option>
+          </select>
+        </label>
+        <label>
+          Difficulty:
+          <select id="difficulty-select">
+            <option value="easy">Easy</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="menu-buttons">
+        <button id="start-btn" class="primary" disabled>Select a Character</button>
+        <button id="leaderboard-btn">Leaderboard</button>
+        <button id="help-btn">How to Play</button>
+      </div>
+    </section>
+
+    <!-- Game screen -->
+    <section id="game-screen" class="screen">
+      <canvas id="game-canvas" width="1024" height="640"></canvas>
+      <div id="hud">
+        <div class="hud-left">
+          <div class="hud-row"><span>Lap</span><strong id="hud-lap">1/3</strong></div>
+          <div class="hud-row"><span>Pos</span><strong id="hud-pos">1/6</strong></div>
+          <div class="hud-row"><span>Time</span><strong id="hud-time">0.00</strong></div>
+        </div>
+        <div class="hud-right">
+          <div class="item-box" id="item-box"><span id="item-label">—</span></div>
+        </div>
+      </div>
+      <div id="countdown" class="countdown hidden"></div>
+      <div id="pause-overlay" class="overlay hidden">
+        <h2>Paused</h2>
+        <button id="resume-btn" class="primary">Resume</button>
+        <button id="quit-btn">Quit to Menu</button>
+      </div>
+    </section>
+
+    <!-- Results screen -->
+    <section id="results-screen" class="screen">
+      <h1 id="results-title">Race Finished</h1>
+      <div id="results-body"></div>
+      <div class="menu-buttons">
+        <button id="rematch-btn" class="primary">Rematch</button>
+        <button id="back-btn">Back to Menu</button>
+      </div>
+    </section>
+
+    <!-- Leaderboard screen -->
+    <section id="leaderboard-screen" class="screen">
+      <h1>Leaderboard</h1>
+      <p class="subtitle">Top 10 total race times (lower is better).</p>
+      <table id="leaderboard-table">
+        <thead>
+          <tr><th>#</th><th>Name</th><th>Character</th><th>Time</th><th>Laps</th><th>Diff</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="menu-buttons">
+        <button id="clear-lb-btn">Clear Leaderboard</button>
+        <button id="lb-back-btn" class="primary">Back</button>
+      </div>
+    </section>
+
+    <!-- Help screen -->
+    <section id="help-screen" class="screen">
+      <h1>How to Play</h1>
+      <div class="help-body">
+        <h3>Controls</h3>
+        <ul>
+          <li><kbd>↑</kbd> or <kbd>W</kbd> — Accelerate</li>
+          <li><kbd>↓</kbd> or <kbd>S</kbd> — Brake / Reverse</li>
+          <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Steer</li>
+          <li><kbd>Space</kbd> — Use item</li>
+          <li><kbd>Esc</kbd> — Pause</li>
+        </ul>
+        <h3>Items</h3>
+        <ul>
+          <li><strong>Boost</strong> — Short burst of speed.</li>
+          <li><strong>Green Shell</strong> — Fires straight ahead.</li>
+          <li><strong>Red Shell</strong> — Homes onto the racer in front.</li>
+          <li><strong>Banana</strong> — Drops behind; spins out anyone who hits it.</li>
+          <li><strong>Lightning</strong> — Shrinks and slows all opponents.</li>
+          <li><strong>Star</strong> — Invincibility + extra speed for a few seconds.</li>
+        </ul>
+        <h3>Tips</h3>
+        <ul>
+          <li>Driving off the track slows you way down.</li>
+          <li>Item boxes respawn after a short cooldown.</li>
+          <li>Trailing racers get better items. Rubber-band life!</li>
+        </ul>
+      </div>
+      <div class="menu-buttons">
+        <button id="help-back-btn" class="primary">Back</button>
+      </div>
+    </section>
+
+    <!-- Name entry modal -->
+    <div id="name-modal" class="modal hidden">
+      <div class="modal-box">
+        <h2>New Best Time!</h2>
+        <p id="name-modal-body"></p>
+        <input id="name-input" type="text" maxlength="12" placeholder="Your name" />
+        <div class="menu-buttons">
+          <button id="name-save-btn" class="primary">Save</button>
+          <button id="name-skip-btn">Skip</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/characters.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/track.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/kart.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/leaderboard.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
