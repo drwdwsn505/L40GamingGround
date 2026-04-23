@@ -7,6 +7,10 @@ class Game {
     this.config = config;
     // config: { playerCharacterId, aiCount, laps, difficulty, onFinish }
 
+    // Load the requested track before anything that depends on track
+    // geometry (item boxes, starting grid, collision).
+    Track.load(config.trackId || "oval");
+
     this.karts = [];
     this.aiDrivers = [];
     this.itemBoxes = buildItemBoxes();
@@ -17,11 +21,30 @@ class Game {
     this.elapsed = 0;
     this.state = "countdown"; // countdown | racing | finished | paused
     this.countdownTime = 3.2;
+    this.lastCountdownSec = Math.ceil(this.countdownTime);
     this.postRaceTime = 0;
     this.finishedOrder = [];
     this.paused = false;
 
     this.buildRoster();
+    this.wirePlayerSounds();
+  }
+
+  wirePlayerSounds() {
+    const p = this.player;
+    p.onDriftStart = () => Sound.driftOn();
+    p.onDriftEnd = () => Sound.driftOff();
+    p.onMiniTurbo = (tier) => Sound.play("miniturbo", tier);
+    p.onSpinOut = () => Sound.play("thunk");
+    p.onItemUsed = (item) => {
+      switch (item.id) {
+        case "BOOST": case "STAR": Sound.play("boost"); break;
+        case "GREEN": case "RED":  Sound.play("zap");   break;
+        case "BANANA":             Sound.play("driftPop"); break;
+        case "LIGHTNING":          Sound.play("thunder"); break;
+      }
+    };
+    this._prevPlayerLap = 0;
   }
 
   buildRoster() {
@@ -54,6 +77,12 @@ class Game {
     // Countdown.
     if (this.state === "countdown") {
       this.countdownTime -= dt;
+      const sec = Math.max(0, Math.ceil(this.countdownTime));
+      if (sec !== this.lastCountdownSec) {
+        this.lastCountdownSec = sec;
+        if (sec === 0) Sound.play("go");
+        else if (sec <= 3) Sound.play("countdown");
+      }
       if (this.countdownTime <= 0) {
         this.state = "racing";
       }
@@ -62,16 +91,24 @@ class Game {
 
     this.elapsed += dt;
 
+    // Engine hum follows player speed.
+    const sp = this.player.physics.maxSpeed;
+    Sound.engineUpdate(Math.max(0, this.player.speed / sp));
+
     // Input — player controls.
     const p = this.player;
     if (!p.finished) {
-      p.applyInput(Input.accelerate(), Input.brake(), Input.left(), Input.right(), dt);
+      p.applyInput(
+        Input.accelerate(), Input.brake(),
+        Input.left(), Input.right(),
+        Input.drift(), dt
+      );
       if (Input.useItem()) {
         p.useItem(this.karts, this.projectiles, this.hazards, this.events);
       }
     } else {
       // After finishing, coast gently.
-      p.applyInput(false, true, false, false, dt);
+      p.applyInput(false, true, false, false, false, dt);
     }
 
     // AI.
@@ -103,9 +140,16 @@ class Game {
           box.consume();
           const pos = this.computePosition(k);
           k.giveItem(rollItem(pos, this.karts.length));
+          if (k.isPlayer) Sound.play("collect");
           break;
         }
       }
+    }
+
+    // Lap chime when the player completes a lap.
+    if (this.player.lap > this._prevPlayerLap) {
+      this._prevPlayerLap = this.player.lap;
+      if (!this.player.finished) Sound.play("chime");
     }
 
     // Projectiles & hazards.
@@ -164,6 +208,7 @@ class Game {
   togglePause() {
     if (this.state !== "racing" && this.state !== "countdown") return;
     this.paused = !this.paused;
+    if (this.paused) { Sound.engineStop(); Sound.driftOff(); }
   }
 
   draw() {

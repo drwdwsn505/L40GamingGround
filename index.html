@@ -18,6 +18,10 @@
 
       <div class="menu-controls">
         <label>
+          Track:
+          <select id="track-select"></select>
+        </label>
+        <label>
           Laps:
           <select id="lap-select">
             <option value="2">2</option>
@@ -41,7 +45,15 @@
             <option value="hard">Hard</option>
           </select>
         </label>
+        <label>
+          Sound:
+          <select id="sound-select">
+            <option value="on" selected>On</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
       </div>
+      <p id="track-description" class="subtitle" style="margin-top:-10px"></p>
 
       <div class="menu-buttons">
         <button id="start-btn" class="primary" disabled>Select a Character</button>
@@ -107,7 +119,14 @@
           <li><kbd>↓</kbd> or <kbd>S</kbd> — Brake / Reverse</li>
           <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Steer</li>
           <li><kbd>Space</kbd> — Use item</li>
+          <li><kbd>Shift</kbd> — Drift (hold while turning at speed)</li>
           <li><kbd>Esc</kbd> — Pause</li>
+        </ul>
+        <h3>Drifting &amp; Mini-Turbo</h3>
+        <ul>
+          <li>Hold <kbd>Shift</kbd> while turning at speed to drift.</li>
+          <li>Sparks behind your kart change color as charge builds: white → blue → orange.</li>
+          <li>Release <kbd>Shift</kbd> to get a boost. Longer drift = bigger boost.</li>
         </ul>
         <h3>Items</h3>
         <ul>
@@ -147,6 +166,7 @@
 
   <script src="js/characters.js"></script>
   <script src="js/input.js"></script>
+  <script src="js/audio.js"></script>
   <script src="js/track.js"></script>
   <script src="js/items.js"></script>
   <script src="js/kart.js"></script>

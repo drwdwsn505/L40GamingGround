@@ -1,7 +1,65 @@
-// Oval race track built around the canvas center. Tracks are defined by an
+// Oval race tracks built around the canvas center. Tracks are defined by an
 // inner + outer ellipse; the playable area is between the two. Checkpoints
 // are evenly spaced around the middle line and racers must cross them in
 // order to count a lap.
+
+// Track definitions. Each varies radii + color theme; grip affects how much
+// the kart slides sideways on the surface.
+const TRACKS = [
+  {
+    id: "oval",
+    name: "Grand Oval",
+    description: "Classic shape, balanced speed and cornering.",
+    outerRx: 440, outerRy: 260,
+    innerRx: 230, innerRy: 100,
+    theme: {
+      grass: "#2b6b3c", grassDark: "#245a32",
+      asphalt: "#3d3d54", asphaltLine: "#ffffff",
+      center: "#56e39f",
+    },
+    gripMod: 1.0,
+  },
+  {
+    id: "speedway",
+    name: "Sunset Speedway",
+    description: "Wider track, long straights. Top-speed machines shine.",
+    outerRx: 470, outerRy: 280,
+    innerRx: 200, innerRy:  90,
+    theme: {
+      grass: "#3a2a5a", grassDark: "#2a1f44",
+      asphalt: "#4a4055", asphaltLine: "#ffd166",
+      center: "#ff9ecb",
+    },
+    gripMod: 1.0,
+  },
+  {
+    id: "hotloop",
+    name: "Hot Loop",
+    description: "Tighter corners. Reward for high handling.",
+    outerRx: 400, outerRy: 230,
+    innerRx: 250, innerRy: 130,
+    theme: {
+      grass: "#6d3a1f", grassDark: "#5a2e18",
+      asphalt: "#4a3a3a", asphaltLine: "#ff8b3d",
+      center: "#ffd166",
+    },
+    gripMod: 1.0,
+  },
+  {
+    id: "glacier",
+    name: "Glacier Ring",
+    description: "Slippery. Karts slide more; steer early.",
+    outerRx: 440, outerRy: 260,
+    innerRx: 230, innerRy: 100,
+    theme: {
+      grass: "#d9e8f3", grassDark: "#bcd4e6",
+      asphalt: "#7a96b6", asphaltLine: "#ffffff",
+      center: "#9ecae1",
+    },
+    gripMod: 0.6,
+  },
+];
+
 const Track = {
   width: 1024,
   height: 640,
@@ -14,6 +72,21 @@ const Track = {
   checkpointCount: 8,
   // The finish line sits at checkpoint 0. Angle 0 points to +X in canvas coords.
   finishAngle: -Math.PI / 2,
+  theme: TRACKS[0].theme,
+  gripMod: 1.0,
+  currentId: "oval",
+
+  load(id) {
+    const def = TRACKS.find(t => t.id === id) || TRACKS[0];
+    this.outerRx = def.outerRx;
+    this.outerRy = def.outerRy;
+    this.innerRx = def.innerRx;
+    this.innerRy = def.innerRy;
+    this.theme = def.theme;
+    this.gripMod = def.gripMod;
+    this.currentId = def.id;
+    return def;
+  },
 
   // Center-line radius (midway between inner and outer).
   midRx() { return (this.outerRx + this.innerRx) / 2; },
@@ -89,13 +162,14 @@ const Track = {
   // Draw the scenery, track, checkpoints, and finish line.
   draw(ctx, options = {}) {
     ctx.save();
+    const th = this.theme;
 
     // grass (background)
-    ctx.fillStyle = "#2b6b3c";
+    ctx.fillStyle = th.grass;
     ctx.fillRect(0, 0, this.width, this.height);
 
     // grass details
-    ctx.fillStyle = "#245a32";
+    ctx.fillStyle = th.grassDark;
     for (let i = 0; i < 60; i++) {
       const gx = (i * 97) % this.width;
       const gy = (i * 53) % this.height;
@@ -103,17 +177,17 @@ const Track = {
     }
 
     // outer track fill (asphalt)
-    ctx.fillStyle = "#3d3d54";
+    ctx.fillStyle = th.asphalt;
     ellipseFill(ctx, this.cx, this.cy, this.outerRx, this.outerRy);
 
     // inner island (back to grass)
-    ctx.fillStyle = "#2b6b3c";
+    ctx.fillStyle = th.grass;
     ellipseFill(ctx, this.cx, this.cy, this.innerRx, this.innerRy);
 
     // center island decoration
-    ctx.fillStyle = "#245a32";
+    ctx.fillStyle = th.grassDark;
     ellipseFill(ctx, this.cx, this.cy, this.innerRx - 20, this.innerRy - 20);
-    ctx.fillStyle = "#56e39f";
+    ctx.fillStyle = th.center;
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
       const px = this.cx + (this.innerRx - 40) * Math.cos(a);
@@ -124,7 +198,7 @@ const Track = {
     }
 
     // track boundary stripes
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = th.asphaltLine;
     ctx.lineWidth = 3;
     ctx.setLineDash([14, 10]);
     ellipseStroke(ctx, this.cx, this.cy, this.outerRx - 6, this.outerRy - 6);

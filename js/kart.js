@@ -33,6 +33,19 @@ class Kart {
     this.item = null;       // ITEM_TYPES entry or null
     this.itemCooldown = 0;
 
+    // Drift state.
+    this.drifting = false;
+    this.driftDir = 0;
+    this.driftCharge = 0;   // seconds spent drifting this session
+
+    // Event hooks (optional — set by Game).
+    this.onBoost = null;
+    this.onMiniTurbo = null;
+    this.onDriftStart = null;
+    this.onDriftEnd = null;
+    this.onItemUsed = null;
+    this.onSpinOut = null;
+
     // Misc.
     this.name = isPlayer ? "You" : character.name;
     this.radius = 14;
@@ -58,22 +71,72 @@ class Kart {
     return Track.angleOf(this.x, this.y);
   }
 
-  applyInput(accelerate, brake, left, right, dt) {
-    // Spinout disables input.
-    if (this.spin > 0) return;
+  applyInput(accelerate, brake, left, right, drift, dt) {
+    // Spinout disables input and cancels any drift (no reward).
+    if (this.spin > 0) { this.endDrift(false); return; }
 
     const p = this.physics;
+    const steer = (right ? 1 : 0) - (left ? 1 : 0);
+    const movingFast = Math.abs(this.speed) > p.maxSpeed * 0.35;
+
+    // Drift entry: must be holding drift, steering, and above speed threshold.
+    if (drift && movingFast && steer !== 0 && !this.drifting) {
+      this.drifting = true;
+      this.driftDir = steer;
+      this.driftCharge = 0;
+      if (this.onDriftStart) this.onDriftStart();
+    }
+    // Drift exit: released button, slowed too much, or spun out.
+    if (this.drifting && (!drift || !movingFast)) {
+      this.endDrift(true);
+    }
+
     const turnScale = Math.min(1, 0.3 + Math.abs(this.speed) / p.maxSpeed);
-    if (left)  this.angle -= p.turnRate * turnScale * (60 * dt);
-    if (right) this.angle += p.turnRate * turnScale * (60 * dt);
+    const turnMult = this.drifting ? 1.5 : 1.0;
+    if (left)  this.angle -= p.turnRate * turnScale * turnMult * (60 * dt);
+    if (right) this.angle += p.turnRate * turnScale * turnMult * (60 * dt);
+    // Drift curl: bias steering in drift direction so the kart arcs tighter.
+    if (this.drifting) {
+      this.angle += this.driftDir * p.turnRate * 0.25 * turnScale * (60 * dt);
+      this.driftCharge += dt;
+    }
 
     const maxSpd = (p.maxSpeed + this.boostSpeed) * (this.shrinkTimer > 0 ? 0.65 : 1);
-    if (accelerate) this.speed += p.accel * (60 * dt);
+    // Drifting slightly taxes acceleration (you trade speed for cornering).
+    const accelMult = this.drifting ? 0.85 : 1.0;
+    if (accelerate) this.speed += p.accel * accelMult * (60 * dt);
     if (brake) {
       if (this.speed > 0) this.speed -= p.brake * (60 * dt);
       else this.speed -= p.accel * 0.6 * (60 * dt);
     }
     this.speed = clamp(this.speed, -maxSpd * 0.5, maxSpd);
+  }
+
+  // Close a drift. When `award`, grant a mini-turbo scaled to charge time.
+  endDrift(award) {
+    if (!this.drifting) return;
+    const charge = this.driftCharge;
+    this.drifting = false;
+    this.driftCharge = 0;
+    this.driftDir = 0;
+    if (!award) return;
+    // Three charge tiers → progressively stronger boosts.
+    let tier = -1;
+    if (charge >= 1.6) {
+      this.boost = Math.max(this.boost, 1.2);
+      this.boostSpeed = Math.max(this.boostSpeed, 2.6);
+      tier = 2;
+    } else if (charge >= 1.0) {
+      this.boost = Math.max(this.boost, 0.8);
+      this.boostSpeed = Math.max(this.boostSpeed, 1.8);
+      tier = 1;
+    } else if (charge >= 0.6) {
+      this.boost = Math.max(this.boost, 0.4);
+      this.boostSpeed = Math.max(this.boostSpeed, 1.1);
+      tier = 0;
+    }
+    if (tier >= 0 && this.onMiniTurbo) this.onMiniTurbo(tier);
+    if (this.onDriftEnd) this.onDriftEnd(tier);
   }
 
   update(dt, elapsed, karts) {
@@ -98,10 +161,14 @@ class Kart {
     const offFactor = onTrack ? 1 : this.physics.offTrackFactor;
     const effSpeed = this.speed * offFactor;
 
-    // Move along facing.
+    // Move along facing, with grip-dependent lag. On slippery tracks (low
+    // gripMod), velocity catches up to facing over time, letting karts slide.
     const fx = Math.cos(this.angle), fy = Math.sin(this.angle);
-    this.vx = fx * effSpeed;
-    this.vy = fy * effSpeed;
+    const desiredVx = fx * effSpeed;
+    const desiredVy = fy * effSpeed;
+    const lerpAmt = Math.min(1, Track.gripMod * (60 * dt));
+    this.vx = this.vx + (desiredVx - this.vx) * lerpAmt;
+    this.vy = this.vy + (desiredVy - this.vy) * lerpAmt;
     this.x += this.vx;
     this.y += this.vy;
 
@@ -210,6 +277,7 @@ class Kart {
         this.boostSpeed = Math.max(this.boostSpeed, 2.2);
         break;
     }
+    if (this.onItemUsed) this.onItemUsed(item);
   }
 
   spinOut() {
@@ -217,9 +285,29 @@ class Kart {
     this.spin = 1.2;
     this.invuln = 1.5;
     this.speed *= 0.25;
+    if (this.onSpinOut) this.onSpinOut();
   }
 
   draw(ctx) {
+    // Drift spark trail. Color tiers with charge: white → blue → orange.
+    if (this.drifting) {
+      const c = this.driftCharge;
+      const sparkColor = c >= 1.6 ? "#ff8a00" : c >= 1.0 ? "#4cc9f0" : "#ffffff";
+      const bx = this.x - Math.cos(this.angle) * 12;
+      const by = this.y - Math.sin(this.angle) * 12;
+      for (let i = 0; i < 6; i++) {
+        const jitter = (Math.random() - 0.5) * 10;
+        const sx = bx + Math.cos(this.angle + Math.PI / 2) * jitter;
+        const sy = by + Math.sin(this.angle + Math.PI / 2) * jitter;
+        ctx.fillStyle = sparkColor;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.5 + Math.random() * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     const scale = this.shrinkTimer > 0 ? 0.65 : 1;
     const opts = {
       star: this.starTimer > 0,

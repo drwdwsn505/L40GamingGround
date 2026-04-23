@@ -36,5 +36,6 @@ const Input = (() => {
     right() { return this.isDown("ArrowRight", "d"); },
     useItem() { return this.wasPressed(" "); },
     pause() { return this.wasPressed("Escape", "p"); },
+    drift() { return this.isDown("Shift"); },
   };
 })();

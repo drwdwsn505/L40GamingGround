@@ -4,9 +4,11 @@
 (function () {
   const state = {
     selectedCharacterId: null,
+    trackId: TRACKS[0].id,
     laps: 3,
     aiCount: 5,
     difficulty: "normal",
+    soundOn: true,
     game: null,
     lastFrame: 0,
     rafId: null,
@@ -65,7 +67,29 @@
     btn.textContent = `Race as ${getCharacter(id).name}`;
   }
 
+  // --- Track picker ---
+  function populateTrackSelect() {
+    const sel = document.getElementById("track-select");
+    sel.innerHTML = "";
+    for (const t of TRACKS) {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      if (t.id === state.trackId) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    updateTrackDescription();
+  }
+  function updateTrackDescription() {
+    const t = TRACKS.find(x => x.id === state.trackId) || TRACKS[0];
+    document.getElementById("track-description").textContent = t.description;
+  }
+
   // --- Hook menu controls ---
+  document.getElementById("track-select").addEventListener("change", e => {
+    state.trackId = e.target.value;
+    updateTrackDescription();
+  });
   document.getElementById("lap-select").addEventListener("change", e => {
     state.laps = parseInt(e.target.value, 10);
   });
@@ -74,6 +98,10 @@
   });
   document.getElementById("difficulty-select").addEventListener("change", e => {
     state.difficulty = e.target.value;
+  });
+  document.getElementById("sound-select").addEventListener("change", e => {
+    state.soundOn = e.target.value === "on";
+    Sound.setEnabled(state.soundOn);
   });
   document.getElementById("start-btn").addEventListener("click", startRace);
   document.getElementById("leaderboard-btn").addEventListener("click", () => {
@@ -132,9 +160,12 @@
   // --- Race lifecycle ---
   function startRace() {
     if (!state.selectedCharacterId) return;
+    // User gesture — ok to init audio now.
+    if (state.soundOn) Sound.ensure();
     const canvas = document.getElementById("game-canvas");
     state.game = new Game(canvas, {
       playerCharacterId: state.selectedCharacterId,
+      trackId: state.trackId,
       aiCount: state.aiCount,
       laps: state.laps,
       difficulty: state.difficulty,
@@ -213,6 +244,8 @@
     if (state.rafId) cancelAnimationFrame(state.rafId);
     state.game = null;
     state.rafId = null;
+    Sound.engineStop();
+    Sound.driftOff();
     document.getElementById("pause-overlay").classList.add("hidden");
     show("menu");
   }
@@ -220,6 +253,9 @@
   function handleFinish(results) {
     if (state.rafId) cancelAnimationFrame(state.rafId);
     state.rafId = null;
+    Sound.engineStop();
+    Sound.driftOff();
+    Sound.play("chime");
 
     const playerResult = results.find(r => r.isPlayer);
     renderResults(results, playerResult);
@@ -292,5 +328,6 @@
 
   // --- Boot ---
   renderCharacterGrid();
+  populateTrackSelect();
   show("menu");
 })();

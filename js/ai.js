@@ -18,8 +18,7 @@ class AIDriver {
     const k = this.kart;
     if (k.finished) {
       // Ease off and coast.
-      const inputs = { accelerate: false, brake: false, left: false, right: false };
-      k.applyInput(false, false, false, false, dt);
+      k.applyInput(false, false, false, false, false, dt);
       return;
     }
 
@@ -67,6 +66,7 @@ class AIDriver {
       brake,
       !mistake && left,
       !mistake && right,
+      false,
       dt
     );
 
